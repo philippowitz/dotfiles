@@ -1,0 +1,24 @@
+#!/usr/bin/sh
+killall yambar
+killall wl-paste
+killall udiskie
+
+swayidle -w \
+        timeout 300 'waylock --fork-on-lock' \
+        timeout 360 'wlopm --off *' resume 'wlopm --on *"' \
+        timeout 600 'systemctl suspend' \
+        before-sleep 'waylock -fork-on-lock -init-color 0xffffff -input-color 0xccdfff -input-alt-color 0xffddff -fail-color 0xff8f88' &
+
+yambar -b wayland &
+
+wbg /home/phil/Pictures/IndianaJonesAndTheGoldenPenger.png &
+# wl-paste --primary --watch wl-copy &
+
+wl-paste --type text --watch cliphist store &
+wl-paste --type image --watch cliphist store &
+udiskie &
+
+rclone mount mailbox: /media/drive --vfs-cache-mode full &
+wayneko 
+
+/home/phil/.config/ffs/startffs.sh

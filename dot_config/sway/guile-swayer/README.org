@@ -1,0 +1,292 @@
+#+STARTUP: inlineimages
+#+OPTIONS: toc:3 ^:nil
+
+** Guile Swayer
+
+I am an =Emacs= user and previously used =StumpWM=, an =X11= window manager written in =Common Lisp=. I believe window managers should be scriptable because the level of workflow customization required by users often exceeds what can be achieved with simple configuration parameters (see my workflow below for a clearer understanding of why this is the case). Unfortunately, =Sway/i3= lacks a straightforward programmable interface for customization. This project provides complete control over =Sway/i3= using =Guile=! 
+
+** Why Sway?
+
+I had to migrate to =Wayland= at some point. Being a big fan of =StumpWM=, I tried to replicate a similar environment in one of the =Wayland= window managers. I made some progress with =hyprland= using a set of =Guile= bindings I developed called =hypripc=, but I found that =Hyprland= isn't as stable as =Sway=.
+
+** Quick Test
+
+Note: refer to the github wiki for more documentation.
+
+After cloning this repository, you can immediately test it using the provided =examples/playground/example.scm= file in the directory, which demonstrates some of the features available in this package.
+
+The =examples/playground/example.scm= file will:
+
+    - Print the current focused workspace
+    - Add a keybinding (Super+t) that launches Alacritty
+    - Print a message when a workspace change event occurs
+
+#+begin_src bash
+guile ./examples/playground/example.scm
+#+end_src
+
+** Quick Overview
+
+*** Query Sway
+
+You can retrieve information about =Sway=, such as list of available =workspaces= or =outputs=. The response will be in Guile records, which you can easily manipulate! (refer to =swayipc/info.scm=)
+
+#+begin_src scheme
+;; get focused workspace from a list of workspaces
+(define (focused-workspace-name workspaces)
+  (cond
+    ((null? workspaces) #f)
+    ((equal? #t (sway-workspace-focused (car workspaces)))
+     (sway-workspace-name (car workspaces)))
+    (else (focused-workspace-name (cdr workspaces)))))
+
+(format #t "output record from function #sway-get-workspaces:\n ~a\n"
+        (sway-get-workspaces))
+
+(format #t "current focused workspace is [~a]\n"
+        (focused-workspace-name (sway-get-workspaces)))
+#+end_src
+
+Note: To send commands to Sway, you must connect to the Sway sockets. Without connecting to the socket your commands won't be sent to Sway. use the function =(sway-connect-socktes!)= immediately after the imports in your =init.scm= to ensure that the rest of the expressions can successfully send commands to Sway.
+
+#+begin_src scheme
+  ;; connect to sway sockets
+  (sway-connect-sockets!)
+#+end_src
+
+*** Assign Keybindings
+
+You can assign keybindings that execute Guile code! Obviously, running shell commands is straightforward since you're operating within Guile. Additionally, you have full access to Sway/i3 specific commands (refer to =swayipc/dispatcher.scm=).
+
+#+begin_src scheme
+  ;; normal sway keybindings (limited and can't easily execute guile code)
+  (sway-bindsym "Mod4+t" "exec alacritty")
+
+  ;; general.scm interface for sway keybindings
+  ;; this uses sway-bindsym behind the scenes, but provides a much
+  ;; user friendly interface to create complex keybindings structure
+  ;; it also allows you to execute guile expressions on trigger.
+  ;; refer to modules/general.scm for more about how this is done.
+
+  ;; define leader keymap
+  (define (exec command)
+    "execute given shell command"
+    (format #t "running: ~a\n" command)
+    (system command))
+
+  (general-define-keys
+   #:prefix "s-Space" #:wk "Leader"
+   `("o" (exec "rofi -show drun"))
+   `("C-g" (sway-mode "default") #:wk "abort")
+
+   ;; rofi keymap
+   `(general-define-keys
+     #:prefix "r" #:wk "Rofi"
+     ("p" (exec "~/.config/rofi/bin/password-manager"))
+     ("m" (exec "rofi-mount"))
+     ("u" (exec "rofi-unmount"))
+     ("w" (exec ".config/rofi/bin/wifi"))
+     ("b" (exec "~/.config/rofi/bin/bluetooth"))
+     ("f" (exec "~/.config/rofi/bin/finder"))
+     ("k" (exec "~/.config/rofi/bin/keyboard-layout"))
+     ("P" (exec "~/.config/rofi/bin/powermenu"))
+     ("s" (exec "~/.config/rofi/bin/sound-input"))
+     ("S" (exec "~/.config/rofi/bin/sound-output")))
+
+   ;; window management
+   `(general-define-keys
+     #:prefix "w" #:wk "Window"
+     ("v" (sway-layout SWAY-LAYOUT-SPLITV))
+     ("h" (sway-layout SWAY-LAYOUT-SPLITH))
+     ("f" (sway-fullscreen SWAY-FULLSCREEN-TOGGLE))
+     ("d" (sway-layout SWAY-LAYOUT-DEFAULT))
+     ("t" (sway-layout SWAY-LAYOUT-TABBED))))
+#+end_src
+
+*** Subscribe to Events
+
+Certain scenarios necessitate subscribing to events. One example from my =workflow= described below requires this capability. With =guile-swayer=, you have the ability to listen for events and execute actions in response.
+
+#+begin_src scheme
+  ;; subscribe to events
+  (define (workspace-changed workspace-event)
+    (let* ((current-tree (sway-workspace-event-current workspace-event))
+           (workspace (sway-tree-name current-tree)))
+
+      (format #t "workspace changed to ~a!\n" workspace)))
+
+  (add-hook! sway-workspace-hook workspace-changed)
+#+end_src
+
+Note: To receive any events, you must subscribe to them. You can subscribe to individual events that interest you or to all available events. Without subscribing and running the event listener in your =init.scm=, your hooks will not receive any events.
+
+The event listener thread is a Unix socket that waits for sway events. This must be executed, preferably as the last expression in your =init.scm= file, because =thread-join= will block execution. This blocking is necessary to keep the listener active and prevent the script from exiting.
+
+#+begin_src scheme
+  ;; subscribe to all events
+  (sway-subscribe-all)
+
+  (sway-start-event-listener-thread)
+  (thread-join! SWAY-LISTENER-THREAD)
+#+end_src
+
+** Documentation
+
+Refer to the wiki for more information.
+Most of the source code is documented. You can refer to =examples/stumpwm-like/init.scm= for a complex stumpwm like configuration example. Here are some important points to consider before hacking your Sway setup
+
+*** Quick Start
+Clone this repository to your =~/.config/sway=
+It's important to know where you clone the repo as you will have to reference it later by path to make a perfect setup.
+
+*** Project Structure
+
+**** Root Directory
+
+|------------+---------------------------------------------------------------------|
+| File       | Description                                                         |
+|------------+---------------------------------------------------------------------|
+| examples   | Examples of configurations the you can refer to for inspiration     |
+| modules    | Directory containing modules for extending Sway using =guile-swayer=. |
+| sjson      | A patched version of =guile-json= (temporarily).                      |
+| swayipc    | Directory containing the core code for =swayipc=.                     |
+| README.org | This readme file                                                    |
+|------------+---------------------------------------------------------------------|
+
+**** swayipc Directory
+|------------+-----------------------------------------------------------------------------|
+| File       | Description                                                                 |
+|------------+-----------------------------------------------------------------------------|
+| connection | Establishes =IPC= connection for handling events and commands with Sway.      |
+| dispatcher | Provides =Guile functions= for all available =Sway= commands.                   |
+| events     | Provides =Gulie Hooks= for all available =Sway= events.                         |
+| info       | Provides =Guile functions= for querying Sway's current state and information. |
+| records    | Provides =Guile records= representing Sway's data structures.                 |
+|------------+-----------------------------------------------------------------------------|
+
+**** Modules Directory
+|----------------------+--------------------------------------------------------------------------------|
+| File                 | Description                                                                    |
+|----------------------+--------------------------------------------------------------------------------|
+| auto-reload.scm      | Watcher to automatically reload Sway when Guile files change.                  |
+| general.scm          | Inspired by Emacs =general= package; provides an easy interface for keybindings. |
+| kbd.scm              | Translates Emacs-like keybindings to be compatible with =Sway=.                  |
+| which-key.scm        | Inspired by Emacs =which-key= package; enhances keybinding discovery.            |
+| workspace-grid.scm   | Configures workspaces in a grid (see workflow below).                          |
+| workspace-groups.scm | Spans/synchronizes workspaces across monitors (see workflow below).            |
+|----------------------+--------------------------------------------------------------------------------|
+
+
+1- You can start your =guile-swayer= configurations from the =REPL=, =terminal=, or a =configuration file=.
+Remember: for debugging or displaying output, it's best to run Guile from the =REPL= or =terminal=. You can also pipe the output to a file if you desire.
+
+#+begin_src conf 
+# good idea to kill all current guile guile-swayer instances first
+exec_always "pkill -f '.*guile.*sway/init.scm'"
+
+# then run a fresh instance, sleeping ensures a more reilable execution
+exec_always "sleep 0.5 && ~/.config/sway/init.scm"
+#+end_src
+
+2- I plan to publish a module for =guile-swayer=, it's currently not hosted anywhere. You'll need to add the module to your =load path=. Additionally, =guile-swayer= includes another patched Guile library called =guile-json=, which is embedded for now. In the future, this will be included as a separate dependency rather than embedded.
+
+#+begin_src scheme
+(add-to-load-path
+ (dirname (or (current-filename)
+              (string-append (getenv "HOME") "/.config/sway/init.scm"))))
+#+end_src
+
+
+** Workflow
+
+*** Workspace Grid
+
+I arrange my workspaces in a grid format. Typically, workspaces are laid out horizontally. With nine workspaces, navigating from workspace 1 to 9 using only horizontal directions can be cumbersome. Assigning a key to each workspace would be efficient but would clutter default mode keybindings. Some might create another mode or submap, but pressing multiple keys to move between workspaces becomes inefficient . I find the optimal solution is organizing workspaces in a grid format, enabling both horizontal and vertical navigation. Currently, I use a 3x3 grid with wraparound navigation.
+
+Horizontal vs Grid 9 workspaces
+
+Horizontal
+#+begin_src 
+  1 2 3 4 5 6 7 8 9
+#+end_src
+
+Grid (3x3)
+#+begin_src 
+  1 2 3
+  4 5 6
+  7 8 9
+#+end_src
+
+Example navigation in a grid (=cs#idx= is current workspace):
+
+#+begin_src 
+  cs#1> go right
+  cs#2> go down
+  cs#5> go down
+  cs#8> go down (notice wraparound behavior)
+  cs#2> go right
+  cs#3> ..
+#+end_src
+
+Note: this behavior is achieved  via =modules/workspace-grid.scm= 
+
+*** Workspace Groups
+
+My workspaces function as groups or tasks that span across all three monitors in my setup. For example, if I switch to my =communication= workspace on one monitor, I want all monitors to switch to their respective =communication= workspaces. This means if I have WhatsApp on monitor #1, Discord on monitor #2, and IRC on monitor #3, they should all align to their designated communication workspace when I switch tasks.
+
+Similarly, this setup extends to projects I work on. If I focus on my dotfiles, I want all monitors to switch to the workspace dedicated to that task. The same principle applies to game development or any other specific task or project workspace I engage with.
+
+Normal workspaces
+#+begin_src 
+  | ws#1 | ws#2 | ws#3 | ws#4 | ws#5 | ws#6 |
+#+end_src
+
+Grouped workspaces (3 monitors)
+#+begin_src
+  |           ws#1           |           ws#2           |
+  |-----------------------------------------------------|
+  | ws#1-1 & ws#1-2 & ws#1-3 | ws#2-1 & ws#2-2 & ws#2-3 |
+#+end_src
+
+Example of navigation into a workspace (same behavior regardless of the method used to switch workspaces):
+
+#+begin_src 
+  ws#1> go to ws#2-1
+  ws#2> go to ws#2-2 (same group, no switching)
+  ws#2> go to ws#1-3
+  ws#1> ..
+#+end_src
+
+You can partially configure workspace groups to span or sync only some workspaces. This allows you to have workspaces that do not span and others that do, with the ability to pin specific workspaces to their monitors when focused.
+
+Note: this behavior is achieved  via =modules/workspace-groups.scm= 
+
+*** Submaps and Which Key
+
+** which-key
+
+=which-key= is a =guile-swayer= module that displays available key bindings in a pop-up window as you start typing a key sequence. This immediate feedback helps users discover and remember commands, reducing the need for memorization and speeding up the learning process. It improves workflow efficiency by allowing users to quickly access commands without interrupting their tasks. Additionally, =which-key= is highly customizable, supporting complex keymaps and personalized setups.
+
+** Submaps
+
+Submaps are keymaps bound to specific prefix keys, grouping related commands under a common prefix. This logical grouping makes key bindings easier to remember and use while reducing conflicts by isolating namespaces for different command sets. Submaps support a hierarchical structure, which is scalable and modular, allowing users to expand and manage their configurations more effectively.
+
+** Combined Benefits
+
+Together, =which-key= and submaps provide a powerful combination for managing key bindings. =which-key= enhances the discoverability of commands within submaps, helping users learn complex setups interactively. This combination reduces the memorization burden, streamlines workflows, and ensures an organized and efficient keybinding system in your sway setup.
+
+[[./preview/which-key.gif]]
+
+** Layouts (experimental)
+
+Layouts is a crucial feature of any tiling window manager. Sway, as a manual tiling window manager based on a tree structure, offers immense flexibility, theoretically allowing you to represent almost any layout you desire. However, the complexity of managing these layouts remains a challenge. Common layouts can make Sway much more user-friendly if they are easily toggled as needed. The goal of the layout feature in Guile Swayer is to provide these common layouts and make them easily togglable for specific workspaces. This feature is still very experimental and not yet intended for daily use.
+
+*** Planned layouts:
+
+- Alternating Layout
+- Emacs Layout
+- Xmonad
+- Matrix
+
+Example of alternating layout currently implemented.
+[[./preview/alternating-layout.gif]]

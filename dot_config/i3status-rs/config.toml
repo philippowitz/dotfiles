@@ -1,0 +1,139 @@
+icons_format = "{icon}"
+
+[theme]
+theme = "semi-native"
+
+[theme.overrides]
+idle_bg = "#e6e6e6"
+idle_fg = "#000000"
+good_fg = "#00663f"
+good_bg = "#e6e6e6"
+warning_fg = "#972500"
+warning_bg = "#e6e6e6"
+critical_fg = "#7f0000"
+critical_bg = "#e6e6e6"
+info_fg = "#000000"
+info_bg = "#e6e6e6"
+
+
+[icons]
+icons = "material-nf"
+
+# set $ac       #07a6c5
+# set $ab       #78a6c0
+# set $fg       #073642
+# set $bg       #dae6e7
+# set $bi       #37474f
+# set $uf       #94a3ad
+# set $ub       #ff8f88
+# set $bar      #4b4b4b
+# set $ta       #ffffff
+# set $tx       #000000
+
+[[block]]
+block = "packages"
+package_manager = ["pacman","aur"]
+aur_command = "paru -Qua"
+interval = 600
+format = " $icon $pacman ❘$aur "
+format_singular = " $icon $total "
+format_up_to_date = ""
+[[block.click]]
+button = "left"
+cmd = "fakeroot paru -Qu --dbpath /tmp/checkup-db-i3statusrs-$USER/ | fuzzel --dmenu"
+[[block.click]]
+# Updates the block on right click
+button = "right"
+update = true
+
+[[block.click]]
+button = "right"
+update = true
+
+[[block]]
+block = "pomodoro"
+notify_cmd = "notify-send '{msg}'"
+blocking_cmd = true
+[block.icons_overrides]
+pomodoro_started = ""
+pomodoro_stopped = ""
+pomodoro_paused = ""
+pomodoro_break = ""
+
+# [[block]]
+# block = "keyboard_layout"
+# driver = "sway"
+# sway_kb_identifier = "1:1:AT_Translated_Set_2_keyboard"
+# [block.mappings]
+# "English (US)" = "us"
+# "German (N/A)" = "de"
+# [[block.click]]
+# button = "right"
+# cmd = "swaymsg input type:keyboard xkb_switch_layout next"
+
+[[block]]
+block = "music"
+
+
+
+[[block]]
+block = "disk_space"
+path = "/"
+info_type = "available"
+alert_unit = "GB"
+interval = 20
+warning = 20.0
+alert = 15.0
+format = " $icon root: $available.eng(w:2) "
+
+[[block]]
+block = "cpu"
+info_cpu = 20
+warning_cpu = 50
+critical_cpu = 90
+
+[[block]]
+block = "memory"
+format = " $icon $mem_used_percents.eng(w:1) "
+format_alt = " $icon_swap $swap_free.eng(w:3,u:B,p:Mi)/$swap_total.eng(w:3,u:B,p:Mi)($swap_used_percents.eng(w:2)) "
+interval = 30
+warning_mem = 70
+critical_mem = 90
+
+[[block]]
+block = "sound"
+[[block.click]]
+button = "left"
+cmd = "pavucontrol"
+
+[[block]]
+block = "sound"
+device_kind = "source"
+[[block.click]]
+button = "left"
+cmd = "pavucontrol"
+
+[[block]]
+block = "net"
+format = " $icon  $signal_strength "
+
+[[block]]
+block = "bluetooth"
+mac = "88:C9:E8:E7:CC:1B"
+disconnected_format = ""
+format = " $icon"
+[block.battery_state]
+"0..20" = "critical"
+"21..70" = "warning"
+"71..100" = "good"
+
+[[block]]
+block = "time"
+interval = 5
+format = " $timestamp.datetime(f:'%a %d/%m %R') "
+
+[[block]]
+block = "battery"
+format = "$icon $percentage"
+device = "DisplayDevice"
+driver = "upower"

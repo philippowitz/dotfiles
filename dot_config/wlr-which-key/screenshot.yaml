@@ -1,0 +1,25 @@
+# Theming
+font: Iosevka Comfy 10
+background: "#ffffffd0"
+color: "#000000ff"
+border: "#000000ff"
+separator: " ➜ "
+border_width: 1
+corner_r: 0
+padding: 15 # Defaults to corner_r
+
+# Anchor and margin
+anchor: top # One of center, left, right, top, bottom, bottom-left, top-left, etc.
+# Only relevant when anchor is not center
+margin_right: 0
+margin_bottom: 0
+margin_left: 0
+margin_top: 40
+
+menu: 
+  "s":
+    desc: Select
+    cmd: 'grim -t png -g "$(slurp -d)" - | wl-copy -t image/png'
+  "f":
+    desc: Fullscreen
+    cmd: 'grim -t png - | wl-copy -t image/png'

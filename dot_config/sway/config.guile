@@ -1,0 +1,31 @@
+include /etc/sway/config.d/*
+
+exec_always "export QT_QPA_PLATFORMTHEME='qt6ct'"
+
+exec_always "guile ~/.config/sway/init.scm > ~/logs/guile-swayer.log 2>&1"
+
+# workspace_layout tabbed
+set $mod Mod4
+seat * shortcuts_inhibitor disable
+set $mode_hotkeygrab Hotkey grab
+bindsym $mod+Shift+z mode "$mode_hotkeygrab"
+mode "$mode_hotkeygrab" {
+  bindsym $mod+Shift+z mode "default"
+}
+
+input * {
+    xkb_layout "us"
+}
+
+input type:keyboard {
+    repeat_delay 200
+    repeat_rate 30
+}
+
+bar {
+    position top
+    height 20
+    status_command /bin/i3status-rs ~/.config/i3status-rs/config.toml
+    status_padding 0
+    colors {
+    }

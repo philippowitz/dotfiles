@@ -1,0 +1,203 @@
+anchors:
+  #color anchors
+- &none     00000000
+- &bg       ffffffff
+- &fg       000000ff
+- &red      d84a4fff
+- &green    006800ff
+- &focus    a4d5f9ff
+- &x 00000000 # font anchors
+- &font-main Iosevka Comfy:size=13
+- &font-smol Iosevka Comfy:size=11
+- &bg_focus {background: {color: *focus}}
+- &bg_urgent {background: {color: *focus}}
+
+bar:
+  height: 16
+  location: top
+  font: *font-main
+  spacing: 2
+  border:
+    bottom-margin: 2
+    top-margin: 2
+  margin: 4
+  layer: bottom
+  foreground: *fg
+  background: *bg
+  left:
+    - river:
+        anchors:
+          - base: &river_base
+              string: {text: " {id} "}
+          - focus: &river_foc
+              string: {text: "[{id}]"}
+          - urg: &river_urg
+              string: {text: " {id} ", foreground: *red}
+        content:
+          map:
+            on-click: 
+              left: sh -c "riverctl set-focused-tags $((1 << ({id} - 1)))"
+              right: sh -c "riverctl toggle-focused-tags $((1 << ({id} -1)))"
+              middle: sh -c "riverctl toggle-view-tags $((1 << ({id} -1)))"
+            conditions:
+              state == urgent: *river_urg
+              state == focused: *river_foc
+              state == visible && ~occupied: *river_base
+              state == visible && occupied: *river_base
+              state == unfocused: *river_base
+              state == invisible && ~occupied: {empty: {}}
+              state == invisible && occupied: *river_base
+
+    - river:
+        title:
+          string:
+            max: 50
+            font: *font-smol
+            text: "{layout}"
+        content:
+          empty: {}
+
+    - foreign-toplevel:
+        content:
+          map:
+            conditions:
+              ~activated: {empty: {}}
+              activated:
+              - string: {max: 50,text: "[{app-id}]"}
+
+  center:
+    - script:
+        path: /usr/bin/playerctl
+        args:
+          - "--follow"
+          - "metadata"
+          - "-f"
+          - |
+            status|string|{{status}}
+            artist|string|{{artist}}
+            title|string|{{title}}
+        content:
+          map:
+            conditions:
+              status == Paused: {empty: {}}
+              status == Playing:
+                string: { max: 60, text: "[{artist} - {title}]"}
+  right:
+    - removables:
+        anchors:
+          drive: &drive { text: usb}
+          optical: &optical {text: opt}
+        content:
+          map:
+            conditions:
+              ~mounted:
+                map:
+                  on-click: udisksctl mount -b {device}
+                  conditions:
+                    ~optical: [{string: *drive}, {string: {text: "{label}"}}]
+                    optical: [{string: *optical}, {string: {text: "{label}"}}]
+              mounted:
+                map:
+                  on-click: udisksctl unmount -b {device}
+                  conditions:
+                    ~optical:
+                      - string: {<<: *drive }
+                      - string: {text: "{label}"}
+                    optical:
+                      - string: {<<: *optical}
+                      - string: {text: "{label}"}
+
+
+
+
+    - script:
+       path: /home/phil/.config/yambar/scripts/pacman.sh
+       args: []
+       content:
+          map:
+             default: { string: { text: "[up {pacman}|{aur}]"} }
+             conditions:
+               pkg == 0: {string: {text: }}
+
+    - network:
+        poll-interval: 0
+        content:
+          map:
+            default: {empty: {}}
+            conditions:
+              name == wlan0:
+                map:
+                  default: {string: {text: "[wifi]"}}
+                  conditions:
+                    state == down: {string: {text: "[wifi down]"}}
+                    state == up:
+                      map:
+                        default:
+                          - string: {text: "[{dl-speed:mb}/{ul-speed:mb} Mb/s]", foreground: *fg}
+
+                        conditions:
+                          ipv4 == "":
+                            - string: {text: "[{dl-speed:mb}/{ul-speed:mb} Mb/s]", foreground: *fg}
+    - pipewire:
+        content:
+          list:
+            items:
+              - map:
+                  conditions:
+                    type == "sink":
+                      map:
+                        on-click: 
+                          left: wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
+                          right: pavucontrol
+                          wheel-up: wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+
+                          wheel-down: wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-
+                        conditions:
+                           muted: {string: {text: "[vol muted]", right-margin: 4}}
+                           ~muted:
+                             - string: {text: "[vol {cubic_volume}%]", right-margin: 4}
+                    type == "source":
+                      map:
+                        on-click: 
+                          left: wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle
+                          right: pavucontrol
+                          wheel-up: wpctl set-volume @DEFAULT_AUDIO_SOURCE@ 5%+
+                          wheel-down: wpctl set-volume @DEFAULT_AUDIO_SOURCE@ 5%-
+                        conditions:
+                          muted: {string: {text: "[mic muted]"}}
+                          ~muted: 
+                            - string: {text: "[mic {cubic_volume}%]"}
+
+    - clock:
+        date-format: "%Y/%m/%d"
+        content:
+          list:
+            items:
+            - string: {text: "[{date}]"}
+    - clock:
+        time-format: "%H:%M %Z"
+        content:
+          list:
+            items:
+            - string: {text: "[{time}]"}
+
+    - battery:
+        name: BAT0
+        poll-interval: 0
+        anchors:
+          discharging: &discharging
+            list:
+              items:
+                - string: {text: "[bat {capacity}%]"}
+        content:
+          map:
+            conditions:
+              state == unknown:
+                <<: *discharging
+              state == discharging:
+                <<: *discharging
+              state == charging:
+                - string: {text: "[bat charging {capacity}%]"}
+              state == full:
+                - string: {text: "[bat full {capacity}% ]"}
+              state == "not charging":
+                - string: {text: "[bat {capacity}%]"}

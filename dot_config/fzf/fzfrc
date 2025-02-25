@@ -1,0 +1,12 @@
+--highlight-line
+--info 'inline-right'
+--ansi
+--layout 'reverse'
+--border 'none'
+--preview-window 'border-sharp'
+--no-separator
+--no-scrollbar
+--pointer ' '
+--prompt '❯ '
+--marker '❯'
+--color 'fg:-1,bg:-1,hl:#3548cf,fg+:#000000,bg+:#d0d6ec,hl+:#3548cf,info:#6f5500,prompt:#6f5500,pointer:#000000,marker:#000000,spinner:#6f5500,gutter:-1'
