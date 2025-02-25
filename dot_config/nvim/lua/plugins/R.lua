@@ -1,0 +1,42 @@
+return {
+--   'R-nvim/R.nvim',
+--   lazy = false,
+--   config = function()
+--     require('r').setup {
+--       -- R_args = {},
+--       -- external_term = 'tmux -splitw',
+--       config_tmux = false,
+--       R_args = { '--quiet', '--no-save' },
+--       R_app = 'radian',
+--       bracketed_paste = true,
+--       R_cmd = 'R',
+--       hook = {
+--         after_config = function()
+--           if vim.o.syntax ~= 'rbrowser' then
+--             vim.api.nvim_buf_set_keymap(0, 'n', '<Enter>', '<Plug>RDSendLine', {})
+--             vim.api.nvim_buf_set_keymap(0, 'v', '<Enter>', '<Plug>RSendSelection', {})
+--           end
+--         end,
+--       },
+--       min_editor_width = 72,
+--       disable_cmds = {
+--         'RCustomStart',
+--         'RSPlot',
+--       },
+--       auto_start = 'always',
+--       open_html = 'open',
+--       objbr_auto_start = true,
+--       objbr_place = 'script,right',
+--       objbr_w = 30,
+--       objbr_allnames = true,
+--       objbr_openlist = false,
+--       objbr_opendf = false,
+--       rconsole_width = 0,
+--       rconsole_height = 15,
+--       auto_scroll = true,
+--       assignment_keymap = '-',
+--       pipe_keymap = '|',
+--     }
+--   end,
+}
+-- vim: ts=2 sts=2 sw=2 et
